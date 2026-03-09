@@ -1,4 +1,3 @@
-// v2
 const express = require('express');
 const cors = require('cors');
 const fetch = require('node-fetch');
@@ -8,8 +7,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || '*', // Production'da frontend URL'inizi yazın
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+app.options('*', cors());
 app.use(express.json({ limit: '1mb' }));
 
 // ---- Health check ----
