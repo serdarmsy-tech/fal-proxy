@@ -30,7 +30,8 @@ app.post('/tts', async (req, res) => {
     return res.status(400).json({ error: 'Metin çok uzun (max 3000 karakter)' });
   }
 
-  const apiKey = process.env.ELEVENLABS_API_KEY;
+  // Tırnak işaretlerini otomatik temizle (Railway bazen ekliyor)
+  const apiKey = (process.env.ELEVENLABS_API_KEY || '').replace(/^["']|["']$/g, '').trim();
   if (!apiKey) {
     return res.status(500).json({ error: 'ElevenLabs API key sunucuda tanımlı değil' });
   }
@@ -78,5 +79,7 @@ app.post('/tts', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`✦ Fal TTS proxy çalışıyor → http://localhost:${PORT}`);
-  console.log(`  ElevenLabs key: ${process.env.ELEVENLABS_API_KEY ? '✓ tanımlı' : '✗ EKSİK'}`);
+  const rawKey = process.env.ELEVENLABS_API_KEY || '';
+  const cleanKey = rawKey.replace(/^["']|["']$/g, '').trim();
+  console.log(`  ElevenLabs key: ${cleanKey ? '✓ tanımlı' : '✗ EKSİK'} (uzunluk: ${cleanKey.length}, ilk 6: ${cleanKey.substring(0,6)})`);
 });
