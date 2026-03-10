@@ -19,25 +19,25 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', tts: !!process.env.GOOGLE_TTS_KEY });
 });
 
-// Google Cloud TTS — Neural2 modeli (çok daha doğal)
+// Google Cloud TTS — Wavenet modeli
 const VOICE_CONFIG = {
   esma: {
-    // Genç kadın — Neural2-D
-    name: 'tr-TR-Neural2-D',
+    // Genç kadın — Wavenet-D (FEMALE)
+    name: 'tr-TR-Wavenet-D',
     ssmlGender: 'FEMALE',
     speakingRate: 0.92,
-    pitch: 1.5,
+    pitch: 2.0,
   },
   nergis: {
-    // Olgun, yumuşak kadın — Neural2-A
-    name: 'tr-TR-Neural2-A',
+    // Olgun, yumuşak kadın — Wavenet-A (FEMALE)
+    name: 'tr-TR-Wavenet-A',
     ssmlGender: 'FEMALE',
     speakingRate: 0.86,
     pitch: -0.5,
   },
   kemal: {
-    // Derin, olgun erkek — Neural2-B
-    name: 'tr-TR-Neural2-B',
+    // Derin, olgun erkek — Wavenet-B (MALE)
+    name: 'tr-TR-Wavenet-B',
     ssmlGender: 'MALE',
     speakingRate: 0.80,
     pitch: -3.0,
