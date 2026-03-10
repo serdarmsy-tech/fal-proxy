@@ -16,63 +16,91 @@ app.use(express.json({ limit: '1mb' }));
 
 // ---- Health check ----
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', elevenlabs: !!process.env.ELEVENLABS_API_KEY });
+  res.json({ status: 'ok', tts: !!process.env.GOOGLE_TTS_KEY });
 });
 
-// ---- TTS proxy endpoint ----
-// POST /tts  { voiceId: string, text: string }
-// Returns: audio/mpeg stream
-app.post('/tts', async (req, res) => {
-  const { voiceId, text, voiceSettings } = req.body;
+// Google Cloud TTS ses ayarları — her falcı için
+const VOICE_CONFIG = {
+  esma: {
+    // Genç, dramatik kadın — tr-TR-Wavenet-E
+    languageCode: 'tr-TR',
+    name: 'tr-TR-Wavenet-E',
+    ssmlGender: 'FEMALE',
+    speakingRate: 0.90,
+    pitch: 2.0,
+  },
+  nergis: {
+    // Orta yaşlı, yumuşak kadın — tr-TR-Wavenet-A
+    languageCode: 'tr-TR',
+    name: 'tr-TR-Wavenet-A',
+    ssmlGender: 'FEMALE',
+    speakingRate: 0.85,
+    pitch: 0.0,
+  },
+  kemal: {
+    // Derin, olgun erkek — tr-TR-Wavenet-B
+    languageCode: 'tr-TR',
+    name: 'tr-TR-Wavenet-B',
+    ssmlGender: 'MALE',
+    speakingRate: 0.80,
+    pitch: -2.0,
+  },
+};
 
-  if (!text || !voiceId) {
-    return res.status(400).json({ error: 'voiceId ve text zorunlu' });
+// ---- TTS endpoint ----
+app.post('/tts', async (req, res) => {
+  const { narrator, text } = req.body;
+
+  if (!text || !narrator) {
+    return res.status(400).json({ error: 'narrator ve text zorunlu' });
   }
 
   if (text.length > 3000) {
     return res.status(400).json({ error: 'Metin çok uzun (max 3000 karakter)' });
   }
 
-  // Tırnak işaretlerini otomatik temizle (Railway bazen ekliyor)
-  const apiKey = (process.env.ELEVENLABS_API_KEY || '').replace(/^["']|["']$/g, '').trim();
+  const apiKey = (process.env.GOOGLE_TTS_KEY || '').replace(/^["']|["']$/g, '').trim();
   if (!apiKey) {
-    return res.status(500).json({ error: 'ElevenLabs API key sunucuda tanımlı değil' });
+    return res.status(500).json({ error: 'Google TTS API key tanımlı değil' });
   }
 
+  const voice = VOICE_CONFIG[narrator] || VOICE_CONFIG.nergis;
+
   try {
-    const elResponse = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+    const response = await fetch(
+      `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': apiKey,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          text,
-          model_id: 'eleven_multilingual_v2',
-          voice_settings: voiceSettings || {
-            stability: 0.55,
-            similarity_boost: 0.80,
-            style: 0.25,
-            use_speaker_boost: true,
+          input: { text },
+          voice: {
+            languageCode: voice.languageCode,
+            name: voice.name,
+            ssmlGender: voice.ssmlGender,
+          },
+          audioConfig: {
+            audioEncoding: 'MP3',
+            speakingRate: voice.speakingRate,
+            pitch: voice.pitch,
+            effectsProfileId: ['headphone-class-device'],
           },
         }),
       }
     );
 
-    if (!elResponse.ok) {
-      const errBody = await elResponse.json().catch(() => ({}));
-      console.error('ElevenLabs error:', errBody);
-      return res.status(elResponse.status).json({
-        error: errBody?.detail?.message || 'ElevenLabs hatası',
-      });
+    const data = await response.json();
+
+    if (!response.ok || data.error) {
+      console.error('Google TTS error:', data.error || data);
+      return res.status(response.status).json({ error: data.error?.message || 'Google TTS hatası' });
     }
 
-    // Stream ses verisini direkt istemciye ilet
+    // base64 MP3'ü binary'e çevir ve gönder
+    const audioBuffer = Buffer.from(data.audioContent, 'base64');
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-cache');
-    elResponse.body.pipe(res);
+    res.send(audioBuffer);
 
   } catch (err) {
     console.error('Proxy error:', err);
@@ -82,7 +110,6 @@ app.post('/tts', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`✦ Fal TTS proxy çalışıyor → http://localhost:${PORT}`);
-  const rawKey = process.env.ELEVENLABS_API_KEY || '';
-  const cleanKey = rawKey.replace(/^["']|["']$/g, '').trim();
-  console.log(`  ElevenLabs key: ${cleanKey ? '✓ tanımlı' : '✗ EKSİK'} (uzunluk: ${cleanKey.length}, ilk 6: ${cleanKey.substring(0,6)})`);
+  const key = (process.env.GOOGLE_TTS_KEY || '').replace(/^["']|["']$/g, '').trim();
+  console.log(`  Google TTS key: ${key ? '✓ tanımlı (ilk 8: ' + key.substring(0, 8) + ')' : '✗ EKSİK'}`);
 });
