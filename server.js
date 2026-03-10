@@ -19,31 +19,28 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', tts: !!process.env.GOOGLE_TTS_KEY });
 });
 
-// Google Cloud TTS ses ayarları — her falcı için
+// Google Cloud TTS — Neural2 modeli (çok daha doğal)
 const VOICE_CONFIG = {
   esma: {
-    // Genç, dramatik kadın — tr-TR-Wavenet-E
-    languageCode: 'tr-TR',
-    name: 'tr-TR-Wavenet-E',
+    // Genç kadın — Neural2-D
+    name: 'tr-TR-Neural2-D',
     ssmlGender: 'FEMALE',
-    speakingRate: 0.90,
-    pitch: 2.0,
+    speakingRate: 0.92,
+    pitch: 1.5,
   },
   nergis: {
-    // Orta yaşlı, yumuşak kadın — tr-TR-Wavenet-A
-    languageCode: 'tr-TR',
-    name: 'tr-TR-Wavenet-A',
+    // Olgun, yumuşak kadın — Neural2-A
+    name: 'tr-TR-Neural2-A',
     ssmlGender: 'FEMALE',
-    speakingRate: 0.85,
-    pitch: 0.0,
+    speakingRate: 0.86,
+    pitch: -0.5,
   },
   kemal: {
-    // Derin, olgun erkek — tr-TR-Wavenet-B
-    languageCode: 'tr-TR',
-    name: 'tr-TR-Wavenet-B',
+    // Derin, olgun erkek — Neural2-B
+    name: 'tr-TR-Neural2-B',
     ssmlGender: 'MALE',
     speakingRate: 0.80,
-    pitch: -2.0,
+    pitch: -3.0,
   },
 };
 
@@ -75,7 +72,7 @@ app.post('/tts', async (req, res) => {
         body: JSON.stringify({
           input: { text },
           voice: {
-            languageCode: voice.languageCode,
+            languageCode: 'tr-TR',
             name: voice.name,
             ssmlGender: voice.ssmlGender,
           },
@@ -92,11 +89,12 @@ app.post('/tts', async (req, res) => {
     const data = await response.json();
 
     if (!response.ok || data.error) {
-      console.error('Google TTS error:', data.error || data);
-      return res.status(response.status).json({ error: data.error?.message || 'Google TTS hatası' });
+      console.error('Google TTS error:', JSON.stringify(data.error || data));
+      return res.status(response.status || 500).json({ 
+        error: data.error?.message || 'Google TTS hatası' 
+      });
     }
 
-    // base64 MP3'ü binary'e çevir ve gönder
     const audioBuffer = Buffer.from(data.audioContent, 'base64');
     res.setHeader('Content-Type', 'audio/mpeg');
     res.setHeader('Cache-Control', 'no-cache');
